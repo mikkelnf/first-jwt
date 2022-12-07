@@ -4,7 +4,10 @@ import com.enigma.controller.UrlMappings;
 import com.enigma.exception.UnauthorizedException;
 import com.enigma.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
@@ -13,12 +16,21 @@ import javax.servlet.http.HttpServletResponse;
 @Component
 public class MyHeaderInterceptor implements HandlerInterceptor {
     @Autowired
-    JwtUtil jwtUtil;
+    RestTemplate restTemplate;
+
+    @Value("${service.validate-token}")
+    String authServiceUrl;
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        if(request.getRequestURI().contains(UrlMappings.TOKEN_URL)){
+        try{
+            String tokenHeader = request.getHeader("Authorization");
+            String[] tokenBearer = tokenHeader.split(" ");
+
+            restTemplate.getForEntity(authServiceUrl + "?token=" + tokenBearer[1], String.class);
             return true;
+        }catch (RestClientException e){
+            throw new UnauthorizedException();
         }
-        return jwtUtil.validateToken(request.getHeader("my-header"));
     }
 }
